@@ -59,7 +59,9 @@
           (bound-and-true-p smerge-mode)
           (save-excursion
             (goto-char (point-min))
-            (when (re-search-forward "^<<<<<<< " nil t)
+            (when (and (re-search-forward "^<<<<<<< " nil t)
+                       (re-search-forward "^=======$" nil t)
+                       (re-search-forward "^>>>>>>> " nil t))
               (smerge-mode 1))))))
   :config
   (map! :map smerge-mode-map
