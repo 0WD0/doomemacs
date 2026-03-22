@@ -841,6 +841,7 @@ appropriately against `noninteractive' or the `cli' context."
           (advice-add #'command-line-1 :after #'doom-finalize '((depth . 100)))
 
           (doom-require 'doom-lib 'debug)
+          (doom-require 'doom-lib 'files)
           (require 'doom-start)
           (let ((init-file (doom-profile-init-file doom-profile)))
             (or (doom-load init-file t)
