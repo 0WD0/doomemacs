@@ -40,6 +40,8 @@ Change `$DOOMDIR' with the `--doomdir' option, e.g.
   ```
   $ doom --doomdir /other/doom/config install
   ```"
+  (when (doom-guix-managed-p)
+    (user-error "This Doom profile is managed by Guix; use 'guix home reconfigure' to provision it instead"))
   (print! (green "Installing Doom Emacs!\n"))
   (let ((default-directory doom-emacs-dir)
         (yes? (doom-cli-context-suppress-prompts-p context)))

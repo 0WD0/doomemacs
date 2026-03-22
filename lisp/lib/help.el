@@ -1,5 +1,7 @@
 ;;; lisp/lib/help.el -*- lexical-binding: t; -*-
 
+(doom-require 'doom-lib 'packages)
+
 (defvar doom--help-major-mode-module-alist
   '((dockerfile-mode :tools docker)
     (agda2-mode      :lang agda)
@@ -519,6 +521,23 @@ will open with point on that line."
                    package)))
      "\n" t)))
 
+(defun doom--help-package-candidates ()
+  (require 'finder-inf nil t)
+  (require 'package)
+  (unless package--initialized
+    (package-initialize t))
+  (when (doom-guix-managed-p)
+    (doom-load-guix-state nil t))
+  (delete-dups
+   (append (mapcar #'car package-alist)
+           (mapcar #'car package--builtins)
+           (when (and (not (doom-guix-managed-p))
+                      (boundp 'straight--build-cache))
+             (mapcar #'intern (hash-table-keys straight--build-cache)))
+           doom-guix-provided-packages
+           (mapcar #'car (doom-package-list 'all))
+           nil)))
+
 (defvar doom--help-packages-list nil)
 ;;;###autoload
 (defun doom/help-packages (package)
@@ -531,22 +550,13 @@ If prefix arg is present, refresh the cache."
   (interactive
    (let ((guess (or (function-called-at-point)
                     (symbol-at-point))))
-     (require 'finder-inf nil t)
-     (require 'package)
-     (require 'straight)
      (let ((packages
             (if (and doom--help-packages-list (null current-prefix-arg))
                 doom--help-packages-list
               (message "Generating packages list for the first time...")
               (redisplay)
               (setq doom--help-packages-list
-                    (delete-dups
-                     (append (mapcar #'car package-alist)
-                             (mapcar #'car package--builtins)
-                             (mapcar #'intern
-                                     (hash-table-keys straight--build-cache))
-                             (mapcar #'car (doom-package-list 'all))
-                             nil))))))
+                    (doom--help-package-candidates)))))
        (unless (memq guess packages)
          (setq guess nil))
        (list
@@ -579,6 +589,25 @@ If prefix arg is present, refresh the cache."
 
         (package--print-help-section "Source")
         (pcase (doom-package-backend package)
+          (`guix
+           (insert "Guix\n")
+           (package--print-help-section "Provided by")
+           (insert (if-let* ((provider (doom-guix-package-provider package)))
+                       (symbol-name provider)
+                     "n/a")
+                   "\n")
+
+           (package--print-help-section "Location")
+           (if-let* ((location (locate-library (symbol-name package))))
+               (doom--help-insert-button
+                (abbreviate-file-name (file-name-directory location)))
+             (insert "n/a"))
+
+           (package--print-help-section "Homepage")
+           (if-let* ((homepage (doom-package-homepage package)))
+               (doom--help-insert-button homepage)
+             (insert "n/a")))
+
           (`straight
            (insert "Straight\n")
            (package--print-help-section "Pinned")
@@ -643,7 +672,8 @@ If prefix arg is present, refresh the cache."
 
         (when-let
             (modules
-             (if (gethash (symbol-name package) straight--build-cache)
+             (if (and (boundp 'straight--build-cache)
+                      (gethash (symbol-name package) straight--build-cache))
                  (doom-package-get package :modules)
                (plist-get (cdr (assq package (doom-package-list 'all)))
                           :modules)))
@@ -684,16 +714,10 @@ If prefix arg is present, refresh the cache."
 (defun doom--package-list (&optional prompt)
   (let* ((guess (or (function-called-at-point)
                     (symbol-at-point))))
-    (require 'finder-inf nil t)
-    (unless package--initialized
-      (package-initialize t))
     (let ((packages (or doom--package-cache
                         (progn
                           (message "Reading packages...")
-                          (cl-delete-duplicates
-                           (append (mapcar 'car package-alist)
-                                   (mapcar 'car package--builtins)
-                                   (mapcar 'car package-archive-contents)))))))
+                          (doom--help-package-candidates)))))
       (setq doom--package-cache packages)
       (unless (memq guess packages)
         (setq guess nil))
@@ -725,7 +749,12 @@ config blocks in your private config."
     (recenter)))
 
 ;;;###autoload
-(defalias 'doom/help-package-homepage #'straight-visit-package-website)
+(defun doom/help-package-homepage (package)
+  "Open PACKAGE's homepage in a browser."
+  (interactive (list (doom--package-list "Open package homepage: ")))
+  (if-let* ((homepage (doom-package-homepage package)))
+      (browse-url homepage)
+    (user-error "Couldn't determine a homepage for %s" package)))
 
 (defun doom--help-search-prompt (prompt)
   (let ((query (doom-thing-at-point-or-region)))

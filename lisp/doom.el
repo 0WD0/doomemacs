@@ -871,6 +871,7 @@ appropriately against `noninteractive' or the `cli' context."
                 files
                 print
                 autoloads
+                indent
                 profiles
                 modules
                 packages))

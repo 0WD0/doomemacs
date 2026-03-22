@@ -143,6 +143,8 @@ It is a good idea to occasionally run this command to ensure your package list
 remains lean."
   :benchmark t
   :group 'emacs
+  (when (doom-guix-managed-p)
+    (user-error "This Doom profile is managed by Guix; there are no straight packages to garbage-collect. Run 'guix home reconfigure' instead"))
   (require 'comp nil t)
   (doom-initialize-packages)
   (doom-packages--barf-if-incomplete)
