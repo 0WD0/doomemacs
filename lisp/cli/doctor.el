@@ -366,6 +366,8 @@ in."
                                                      (mapcar #'car doom-packages)))
                                      unless (or (doom-package-get name :disable)
                                                 (eval (doom-package-get name :ignore))
+                                                (and (doom-guix-managed-p)
+                                                     (memq name '(straight)))
                                                 (plist-member (doom-package-get name :recipe) :local-repo)
                                                 (locate-library (symbol-name name))
                                                 (doom-package-built-in-p name)
