@@ -37,12 +37,29 @@
 ;;; Code:
 
 (require 'comp nil t)
-(require 'doom-straight)
 (doom-require 'doom-lib 'modules)
+
+(unless (doom-guix-managed-p)
+  (require 'doom-straight))
 
 
 ;;
 ;;; Variables
+
+(defvar doom-guix-state-version nil
+  "The schema version of the generated Guix package state file.")
+
+(defvar doom-guix-provided-packages nil
+  "A list of packages Guix provides for the active Doom profile.")
+
+(defvar doom-guix-missing-packages nil
+  "A list of Doom packages Guix does not provide for the active profile.")
+
+(defvar doom-guix-package-registry nil
+  "Additional metadata about how Guix satisfies Doom packages.")
+
+(defvar doom--guix-state-loaded-p nil
+  "Whether `doom-guix-state-file' has been loaded in this session.")
 
 ;; DEPRECATED: Will be stored in the local profile in v3.0
 (defvar doom-packages ()
@@ -53,6 +70,30 @@ package's name as a symbol, and whose CDR is the plist supplied to its
 ;; DEPRECATED: Will be stored in the local profile in v3.0
 (defvar doom-disabled-packages ()
   "A list of packages that should be ignored by `use-package!' and `after!'.")
+
+(defun doom-load-guix-state (&optional force-p noerror)
+  "Load `doom-guix-state-file' for the active profile.
+
+If FORCE-P is non-nil, reload it even if it has already been loaded. If NOERROR
+is non-nil, suppress file-missing errors and return nil instead."
+  (when force-p
+    (setq doom--guix-state-loaded-p nil))
+  (cond (doom--guix-state-loaded-p t)
+        ((file-exists-p doom-guix-state-file)
+         (setq doom-guix-state-version nil
+               doom-disabled-packages nil
+               doom-guix-provided-packages nil
+               doom-guix-missing-packages nil
+               doom-guix-package-registry nil)
+         (load doom-guix-state-file noerror 'nomessage 'nosuffix)
+         (setq doom--guix-state-loaded-p t))
+        (noerror nil)
+        (t (signal 'file-missing
+                   (list "Missing generated Guix state file" doom-guix-state-file)))))
+
+(defun doom-packages--managed-by-guix-error ()
+  (doom-load-guix-state nil t)
+  (user-error "This Doom profile is managed by Guix; run 'guix home reconfigure' instead"))
 
 
 ;;
@@ -164,15 +205,16 @@ package's name as a symbol, and whose CDR is the plist supplied to its
 ;;;###autoload
 (defun doom-initialize-core-packages (&optional force-p)
   "Ensure `straight' is installed and was compiled with this version of Emacs."
-  (when (or force-p (null (bound-and-true-p straight-recipe-repositories)))
-    (doom-log "Initializing straight")
-    (let ((packages (doom-package-list '((:doom)))))
-      (cl-destructuring-bind (&key recipe pin &allow-other-keys)
-          (alist-get 'straight packages)
-        (doom--ensure-straight recipe pin))
-      (doom--ensure-core-packages
-       (seq-filter (fn! (eq (plist-get (cdr %) :type) 'core))
-                   packages)))))
+  (unless (doom-guix-managed-p)
+    (when (or force-p (null (bound-and-true-p straight-recipe-repositories)))
+      (doom-log "Initializing straight")
+      (let ((packages (doom-package-list '((:doom)))))
+        (cl-destructuring-bind (&key recipe pin &allow-other-keys)
+            (alist-get 'straight packages)
+          (doom--ensure-straight recipe pin))
+        (doom--ensure-core-packages
+         (seq-filter (fn! (eq (plist-get (cdr %) :type) 'core))
+                     packages))))))
 
 ;;;###autoload
 (defun doom-initialize-packages (&optional force-p)
@@ -182,33 +224,39 @@ If FORCE-P is non-nil, do it anyway.
 
 This ensures `doom-packages' is populated and `straight' recipes are properly
 processed."
-  (doom-initialize-core-packages force-p)
-  (when (or force-p (not (bound-and-true-p package--initialized)))
-    (doom-log "Initializing package.el")
-    (require 'package)
-    (package-initialize t)
-    (unless package--initialized
-      (error "Failed to initialize package.el")))
-  (when (or force-p (null doom-packages))
-    (doom-log "Initializing straight.el")
-    (setq doom-disabled-packages nil
-          doom-packages (doom-package-list))
-    (let (packages)
-      (dolist (package doom-packages)
-        (cl-destructuring-bind
-            (name &key recipe disable ignore &allow-other-keys) package
-          (if ignore
-              (straight-override-recipe (cons name '(:type built-in)))
-            (if disable
-                (cl-pushnew name doom-disabled-packages)
-              (when recipe
-                (straight-override-recipe (cons name recipe)))
-              (cl-callf append packages (cons name (straight--get-dependencies name)))))))
-      (dolist (package (cl-delete-duplicates packages :test #'equal))
-        (straight-register-package package)
-        (let ((name (symbol-name package)))
-          (add-to-list 'load-path (directory-file-name (straight--build-dir name)))
-          (straight--load-package-autoloads name))))))
+  (if (doom-guix-managed-p)
+      (progn
+        (doom-modules-initialize force-p)
+        (setq doom-packages nil
+              doom-disabled-packages nil)
+        (doom-load-guix-state force-p t))
+    (doom-initialize-core-packages force-p)
+    (when (or force-p (not (bound-and-true-p package--initialized)))
+      (doom-log "Initializing package.el")
+      (require 'package)
+      (package-initialize t)
+      (unless package--initialized
+        (error "Failed to initialize package.el")))
+    (when (or force-p (null doom-packages))
+      (doom-log "Initializing straight.el")
+      (setq doom-disabled-packages nil
+            doom-packages (doom-package-list))
+      (let (packages)
+        (dolist (package doom-packages)
+          (cl-destructuring-bind
+              (name &key recipe disable ignore &allow-other-keys) package
+            (if ignore
+                (straight-override-recipe (cons name '(:type built-in)))
+              (if disable
+                  (cl-pushnew name doom-disabled-packages)
+                (when recipe
+                  (straight-override-recipe (cons name recipe)))
+                (cl-callf append packages (cons name (straight--get-dependencies name)))))))
+        (dolist (package (cl-delete-duplicates packages :test #'equal))
+          (straight-register-package package)
+          (let ((name (symbol-name package)))
+            (add-to-list 'load-path (directory-file-name (straight--build-dir name)))
+            (straight--load-package-autoloads name)))))))
 
 ;;;###autoload
 (defun doom-package-get (package &optional prop nil-value)
@@ -773,9 +821,11 @@ Must be run from a magit diff buffer."
      ,@body))
 
 (defun doom-packages--barf-if-incomplete ()
-  (let ((straight-safe-mode t))
-    (condition-case _ (straight-check-all)
-      (error (user-error "Package state is incomplete. Run 'doom sync' first")))))
+  (if (doom-guix-managed-p)
+      (doom-packages--managed-by-guix-error)
+    (let ((straight-safe-mode t))
+      (condition-case _ (straight-check-all)
+        (error (user-error "Package state is incomplete. Run 'doom sync' first"))))))
 
 (defmacro doom-packages--with-recipes (recipes binds &rest body)
   (declare (indent 2))
@@ -943,6 +993,8 @@ Must be run from a magit diff buffer."
 (defun doom-packages-ensure (&optional force-p)
   "Ensure packages are installed, built"
   (doom-initialize-packages)
+  (when (doom-guix-managed-p)
+    (doom-packages--managed-by-guix-error))
   (if (not (file-directory-p (straight--repos-dir)))
       (print! (start "Installing all packages for the first time (this may take a while)..."))
     (if force-p
@@ -1056,6 +1108,8 @@ Must be run from a magit diff buffer."
 (defun doom-packages-update (&optional pinned-only-p)
   "Updates packages."
   (doom-initialize-packages)
+  (when (doom-guix-managed-p)
+    (doom-packages--managed-by-guix-error))
   (doom-packages--barf-if-incomplete)
   (let* ((repo-dir (straight--repos-dir))
          (pinned (doom-package-pinned-alist))

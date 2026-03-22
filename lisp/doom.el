@@ -110,8 +110,8 @@
 ;; to be refreshed.
 (let ((old-version (eval-when-compile emacs-major-version)))
   (unless (= emacs-major-version old-version)
-    (user-error (concat "Doom was compiled with Emacs %s, but was loaded with %s. Run 'doom sync' to"
-                        "recompile it.")
+    (user-error (concat "Doom was compiled with Emacs %s, but was loaded with %s. Regenerate Doom's "
+                        "profile files (e.g. with 'doom sync' or 'guix home reconfigure') to recompile it.")
                 emacs-major-version old-version)))
 
 ;;; Custom features & global constants
@@ -370,6 +370,14 @@ For profile-local state files, use `doom-profile-state-dir' instead.")
 (defconst doom-profile-dir
   (file-name-concat doom-profile-data-dir "@" (cdr doom-profile))
   "Where generated files for the active profile (for Doom's core) are kept.")
+
+(defconst doom-guix-state-file
+  (file-name-concat doom-profile-dir "guix-state.el")
+  "Where Guix writes generated package state for the active profile.")
+
+(defun doom-guix-managed-p ()
+  "Return non-nil if the active Doom profile is managed by Guix."
+  (file-exists-p doom-guix-state-file))
 
 ;; DEPRECATED: Will be moved to cli/env
 (defconst doom-env-file
@@ -735,8 +743,9 @@ safely cleaned up with \\='doom sync' or \\='doom gc'."
 ;; DEPRECATED: Interactive sessions won't be able to interact with Straight (or
 ;;   Elpaca) in the future, so this is temporary.
 (with-eval-after-load 'straight
-  (require 'doom-straight)
-  (doom-initialize-packages))
+  (unless (doom-guix-managed-p)
+    (require 'doom-straight)
+    (doom-initialize-packages)))
 
 
 ;;
@@ -831,6 +840,7 @@ appropriately against `noninteractive' or the `cli' context."
           ;; process.
           (advice-add #'command-line-1 :after #'doom-finalize '((depth . 100)))
 
+          (doom-require 'doom-lib 'debug)
           (require 'doom-start)
           (let ((init-file (doom-profile-init-file doom-profile)))
             (or (doom-load init-file t)
