@@ -294,6 +294,8 @@ caches them in `doom--profiles'. If RELOAD? is non-nil, refresh the cache."
                    (current-buffer))
             (when (doom-guix-managed-p)
               (prin1 `(doom-load doom-guix-state-file 'noerror)
+                     (current-buffer))
+              (prin1 `(doom-load doom-guix-context-file 'noerror)
                      (current-buffer)))
             (prin1 `(with-doom-context '(module init)
                       (doom-load (file-name-concat doom-user-dir ,doom-module-init-file) t))

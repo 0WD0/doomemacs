@@ -375,9 +375,50 @@ For profile-local state files, use `doom-profile-state-dir' instead.")
   (file-name-concat doom-profile-dir "guix-state.el")
   "Where Guix writes generated package state for the active profile.")
 
+(defconst doom-guix-context-file
+  (file-name-concat doom-profile-dir "guix-context.el")
+  "Where Guix writes generated runtime context for the active profile.")
+
+(defvar doom-guix-context-version nil
+  "The schema version of the generated Guix runtime context file.")
+
+(defvar doom-guix-context nil
+  "An alist of generated Guix runtime facts for the active Doom profile.")
+
+(defvar doom-guix-desktop-backend nil
+  "The desktop backend symbol recorded in the generated Guix context.")
+
+(defvar doom--guix-context-loaded-p nil
+  "Whether `doom-guix-context-file' has been loaded in this session.")
+
+(defun doom-load-guix-context (&optional force-p noerror)
+  "Load `doom-guix-context-file' for the active profile.
+
+If FORCE-P is non-nil, reload it even if it has already been loaded. If NOERROR
+is non-nil, suppress file-missing errors and return nil instead."
+  (when force-p
+    (setq doom--guix-context-loaded-p nil))
+  (cond (doom--guix-context-loaded-p t)
+        ((file-exists-p doom-guix-context-file)
+         (setq doom-guix-context-version nil
+               doom-guix-context nil
+               doom-guix-desktop-backend nil)
+         (load doom-guix-context-file noerror 'nomessage 'nosuffix)
+         (setq doom--guix-context-loaded-p t))
+        (noerror nil)
+        (t (signal 'file-missing
+                   (list "Missing generated Guix context file" doom-guix-context-file)))))
+
+(defun doom-desktop-backend ()
+  "Return the active desktop backend symbol for this Doom session."
+  (when (doom-guix-managed-p)
+    (doom-load-guix-context nil t)
+    doom-guix-desktop-backend))
+
 (defun doom-guix-managed-p ()
   "Return non-nil if the active Doom profile is managed by Guix."
-  (file-exists-p doom-guix-state-file))
+  (or (file-exists-p doom-guix-state-file)
+      (file-exists-p doom-guix-context-file)))
 
 ;; DEPRECATED: Will be moved to cli/env
 (defconst doom-env-file

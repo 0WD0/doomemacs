@@ -9,5 +9,7 @@
   (unless (executable-find "dot")
     (warn! "Couldn't find dot. PlantUML will only show outputs for sequence and activity diagrams"))
   ;; plantuml.jar
-  (unless (file-exists-p plantuml-jar-path)
-    (warn! "Couldn't find plantuml.jar. Install it with M-x plantuml-download-jar")))
+  (unless (or (and (boundp 'plantuml-executable-path)
+                   (executable-find plantuml-executable-path))
+              (file-exists-p plantuml-jar-path))
+    (warn! "Couldn't find plantuml.jar or a usable PlantUML executable.")))

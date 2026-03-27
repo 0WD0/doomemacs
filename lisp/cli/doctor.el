@@ -177,7 +177,10 @@ in."
     (print-group!
       (if (doom-load-guix-state nil t)
           (success! "Detected Guix package state v%s" doom-guix-state-version)
-        (error! "Missing generated Guix package state; run 'guix home reconfigure'"))))
+        (error! "Missing generated Guix package state; run 'guix home reconfigure'"))
+      (if (doom-load-guix-context nil t)
+          (success! "Detected Guix runtime context v%s" doom-guix-context-version)
+        (error! "Missing generated Guix runtime context; run 'guix home reconfigure'"))))
 
   (print! (start "Checking for common environmental issues..."))
   (print-group!
