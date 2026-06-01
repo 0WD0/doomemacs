@@ -97,7 +97,7 @@
                        (getenv-internal "XDG_DATA_HOME")
                        "~/.local/share")))
                 'noerror (not init-file-debug))
-          (user-error "Profiles not initialized yet; run 'doom sync' first"))))
+          (user-error "Profiles not initialized yet; regenerate Doom's profile loader first"))))
 
   ;; PERF: When `load'ing or `require'ing files, each permutation of
   ;;   `load-suffixes' and `load-file-rep-suffixes' (then `load-suffixes' +

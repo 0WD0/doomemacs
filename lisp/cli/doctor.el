@@ -2,6 +2,8 @@
 ;;; Commentary:
 ;;; Code:
 
+(doom-require 'doom-lib 'packages)
+
 (defvar doom-doctor--warnings ())
 (defvar doom-doctor--errors ())
 
@@ -170,6 +172,16 @@ in."
                 doom-dir)
         (explain! "The second directory will be ignored, as it has lower precedence."))))
 
+  (when (doom-guix-managed-p)
+    (print! (start "Checking generated Guix state..."))
+    (print-group!
+      (if (doom-load-guix-state nil t)
+          (success! "Detected Guix package state v%s" doom-guix-state-version)
+        (error! "Missing generated Guix package state; run 'guix home reconfigure'"))
+      (if (doom-load-guix-context nil t)
+          (success! "Detected Guix runtime context v%s" doom-guix-context-version)
+        (error! "Missing generated Guix runtime context; run 'guix home reconfigure'"))))
+
   (print! (start "Checking for common environmental issues..."))
   (print-group!
     (unless (file-writable-p temporary-file-directory)
@@ -201,7 +213,8 @@ in."
   (print! (start "Checking for stale elc files..."))
   (elc-check-dir doom-core-dir)
   (elc-check-dir doom-modules-dir)
-  (elc-check-dir (doom-path doom-local-dir "straight" straight-build-dir))
+  (unless (doom-guix-managed-p)
+    (elc-check-dir (doom-path doom-local-dir "straight" straight-build-dir)))
 
   (print! (start "Checking for problematic git global settings..."))
   (if (executable-find "git")
@@ -220,8 +233,11 @@ in."
   (condition-case-unless-debug ex
       (print-group!
         (doom-initialize t)
+        (unless (boundp 'auto-minor-mode-alist)
+          (setq auto-minor-mode-alist nil))
         (doom-startup)
-        (require 'straight)
+        (unless (doom-guix-managed-p)
+          (require 'straight))
 
         (print! (success "Initialized Doom Emacs %s") doom-version)
         (print!
@@ -229,7 +245,10 @@ in."
              (success "Detected %d modules" (hash-table-count doom-modules))
            (warn "Failed to load any modules. Do you have an private init.el?")))
 
-        (print! (success "Detected %d packages") (length doom-packages))
+        (print! (success "Detected %d packages")
+                (if (doom-guix-managed-p)
+                    (length doom-guix-provided-packages)
+                  (length doom-packages)))
 
         (print! (start "Checking Doom core for irregularities..."))
         (print-group!
@@ -350,6 +369,8 @@ in."
                                                      (mapcar #'car doom-packages)))
                                      unless (or (doom-package-get name :disable)
                                                 (eval (doom-package-get name :ignore))
+                                                (and (doom-guix-managed-p)
+                                                     (memq name '(straight)))
                                                 (plist-member (doom-package-get name :recipe) :local-repo)
                                                 (locate-library (symbol-name name))
                                                 (doom-package-built-in-p name)

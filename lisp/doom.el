@@ -110,8 +110,8 @@
 ;; to be refreshed.
 (let ((old-version (eval-when-compile emacs-major-version)))
   (unless (= emacs-major-version old-version)
-    (user-error (concat "Doom was compiled with Emacs %s, but was loaded with %s. Run 'doom sync' to"
-                        "recompile it.")
+    (user-error (concat "Doom was compiled with Emacs %s, but was loaded with %s. Regenerate Doom's "
+                        "profile files (e.g. with 'doom sync' or 'guix home reconfigure') to recompile it.")
                 emacs-major-version old-version)))
 
 ;;; Custom features & global constants
@@ -370,6 +370,59 @@ For profile-local state files, use `doom-profile-state-dir' instead.")
 (defconst doom-profile-dir
   (file-name-concat doom-profile-data-dir "@" (cdr doom-profile))
   "Where generated files for the active profile (for Doom's core) are kept.")
+
+(defconst doom-guix-state-file
+  (file-name-concat doom-profile-dir "guix-state.el")
+  "Where Guix writes generated package state for the active profile.")
+
+(defconst doom-guix-context-file
+  (file-name-concat doom-profile-dir "guix-context.el")
+  "Where Guix writes generated runtime context for the active profile.")
+
+(defvar doom-guix-context-version nil
+  "The schema version of the generated Guix runtime context file.")
+
+(defvar doom-guix-context nil
+  "An alist of generated Guix runtime facts for the active Doom profile.")
+
+(defvar doom-guix-desktop-backend nil
+  "The desktop backend symbol recorded in the generated Guix context.")
+
+(defvar doom-guix-tree-sitter-grammar-directory nil
+  "The Guix-built tree-sitter grammar directory for the active Doom profile.")
+
+(defvar doom--guix-context-loaded-p nil
+  "Whether `doom-guix-context-file' has been loaded in this session.")
+
+(defun doom-load-guix-context (&optional force-p noerror)
+  "Load `doom-guix-context-file' for the active profile.
+
+If FORCE-P is non-nil, reload it even if it has already been loaded. If NOERROR
+is non-nil, suppress file-missing errors and return nil instead."
+  (when force-p
+    (setq doom--guix-context-loaded-p nil))
+  (cond (doom--guix-context-loaded-p t)
+        ((file-exists-p doom-guix-context-file)
+         (setq doom-guix-context-version nil
+               doom-guix-context nil
+               doom-guix-desktop-backend nil
+               doom-guix-tree-sitter-grammar-directory nil)
+         (load doom-guix-context-file noerror 'nomessage 'nosuffix)
+         (setq doom--guix-context-loaded-p t))
+        (noerror nil)
+        (t (signal 'file-missing
+                   (list "Missing generated Guix context file" doom-guix-context-file)))))
+
+(defun doom-desktop-backend ()
+  "Return the active desktop backend symbol for this Doom session."
+  (when (doom-guix-managed-p)
+    (doom-load-guix-context nil t)
+    doom-guix-desktop-backend))
+
+(defun doom-guix-managed-p ()
+  "Return non-nil if the active Doom profile is managed by Guix."
+  (or (file-exists-p doom-guix-state-file)
+      (file-exists-p doom-guix-context-file)))
 
 ;; DEPRECATED: Will be moved to cli/env
 (defconst doom-env-file
@@ -735,8 +788,9 @@ safely cleaned up with \\='doom sync' or \\='doom gc'."
 ;; DEPRECATED: Interactive sessions won't be able to interact with Straight (or
 ;;   Elpaca) in the future, so this is temporary.
 (with-eval-after-load 'straight
-  (require 'doom-straight)
-  (doom-initialize-packages))
+  (unless (doom-guix-managed-p)
+    (require 'doom-straight)
+    (doom-initialize-packages)))
 
 
 ;;
@@ -831,6 +885,7 @@ appropriately against `noninteractive' or the `cli' context."
           ;; process.
           (advice-add #'command-line-1 :after #'doom-finalize '((depth . 100)))
 
+          (doom-require 'doom-lib 'debug)
           (require 'doom-start)
           (let ((init-file (doom-profile-init-file doom-profile)))
             (or (doom-load init-file t)
@@ -861,6 +916,7 @@ appropriately against `noninteractive' or the `cli' context."
                 files
                 print
                 autoloads
+                indent
                 profiles
                 modules
                 packages))

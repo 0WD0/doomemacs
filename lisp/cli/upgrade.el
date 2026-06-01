@@ -32,6 +32,8 @@ libraries. It is the equivalent of the following shell commands:
     $ cd ~/.emacs.d
     $ git pull --rebase
     $ doom sync -u"
+  (when (doom-guix-managed-p)
+    (user-error "This Doom profile is managed by Guix; update your dotfiles and run 'guix home reconfigure' instead"))
   (let ((force? (doom-cli-context-suppress-prompts-p context)))
     (cond
      (packages?
