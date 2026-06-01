@@ -138,6 +138,13 @@ capture, the end position, and the output buffer.")
   :commands (markdown-ts-mode)
   :defer t
   :init
+  ;; Some prebuilt grammar packages (e.g. distro packages) ship the inline
+  ;; grammar as libtree-sitter-markdown_inline.so, so teach Emacs how to find
+  ;; it when using the `markdown-inline' language symbol.
+  (add-to-list 'treesit-load-name-override-list
+               '(markdown-inline
+                 "libtree-sitter-markdown_inline"
+                 "tree_sitter_markdown_inline"))
   (set-tree-sitter! 'markdown-mode 'markdown-ts-mode
     `((markdown :url "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
                 :rev ,(if (< (treesit-library-abi-version) 15) "v0.4.1" "v0.5.3")

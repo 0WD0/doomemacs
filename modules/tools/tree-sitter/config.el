@@ -99,10 +99,17 @@
         mode)))
 
   :config
-  ;; HACK: Keep $EMACSDIR clean by installing grammars to central location (the
-  ;;   active profile).
+  ;; HACK: Keep $EMACSDIR clean by installing grammars to central locations:
+  ;;   Guix-managed profiles use an immutable store directory recorded in
+  ;;   guix-context.el, while manual installs go under the active Doom profile.
   (let ((data-dir (file-name-concat doom-profile-data-dir "tree-sitter")))
-    (add-to-list 'treesit-extra-load-path data-dir)
+    (when (doom-guix-managed-p)
+      (doom-load-guix-context nil t)
+      (when (and doom-guix-tree-sitter-grammar-directory
+                 (file-directory-p doom-guix-tree-sitter-grammar-directory))
+        (add-to-list 'treesit-extra-load-path
+                     doom-guix-tree-sitter-grammar-directory)))
+    (add-to-list 'treesit-extra-load-path data-dir t)
     ;; Treesit's API saw major changes in 30.x.
     (if (< emacs-major-version 30)
         (defadvice! +tree-sitter--install-grammar-to-local-dir-a (fn out-dir &rest args)
