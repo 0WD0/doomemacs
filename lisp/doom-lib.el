@@ -151,6 +151,16 @@ list is returned as-is."
 
 (defalias 'doom-partial #'apply-partially)
 
+(defun doom-path-in-directory-p (path dir)
+  "Return non-nil if PATH lexically resides under DIR.
+
+Unlike `file-in-directory-p', this preserves the visible path, which matters for
+symlinked deployments such as Guix Home."
+  (when (and (stringp path) (stringp dir))
+    (let ((path (expand-file-name path))
+          (dir (file-name-as-directory (expand-file-name dir))))
+      (string-prefix-p dir path))))
+
 (defun doom-rpartial (fn &rest args)
   "Return a partial application of FUN to right-hand ARGS.
 
@@ -199,7 +209,7 @@ Return non-nil if loading the file succeeds."
                      (doom-user-error    . ,doom-user-dir)
                      (doom-profile-error . ,doom-profile-dir)
                      (doom-module-error  . ,doom-modules-dir))
-                if (file-in-directory-p path dir)
+                if (doom-path-in-directory-p path dir)
                 do (signal err (list (file-relative-name path (expand-file-name "../" dir))
                                      e)))))))
 
@@ -1506,9 +1516,9 @@ If ENABLED-ONLY?, return nil if the containing module isn't enabled."
                (and (or (null enabled-only?)
                         (doom-module-active-p group name))
                     (cons group name))))
-            ((file-in-directory-p path doom-core-dir)
+            ((doom-path-in-directory-p path doom-core-dir)
              (cons :doom nil))
-            ((file-in-directory-p path doom-user-dir)
+            ((doom-path-in-directory-p path doom-user-dir)
              (cons :user nil))))))
 
 (defun doom-module-load-path (&optional module-load-path)
