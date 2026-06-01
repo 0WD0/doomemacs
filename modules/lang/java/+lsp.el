@@ -8,6 +8,12 @@
   (add-hook 'java-mode-local-vars-hook #'lsp! 'append)
   (add-hook 'java-ts-mode-local-vars-hook #'lsp! 'append)
   :config
+  (when-let* ((jdtls (executable-find lsp-java-jdt-ls-command))
+              (prefix (file-name-directory
+                       (directory-file-name
+                        (file-name-directory jdtls)))))
+    (setq lsp-java-jdt-ls-prefer-native-command t
+          lsp-java-server-install-dir prefix))
   (when (modulep! :tools debugger +lsp)
     (setq lsp-jt-root (concat lsp-java-server-install-dir "java-test/server/")
           dap-java-test-runner (concat lsp-java-server-install-dir "test-runner/junit-platform-console-standalone.jar"))))

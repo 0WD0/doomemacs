@@ -12,16 +12,24 @@
           hy-mode
           dune-mode) . parinfer-rust-mode)
   :init
-  (setq parinfer-rust-library
-        (file-name-concat
-         doom-data-dir "parinfer-rust/"
-         (cond ((featurep :system 'macos)   "parinfer-rust-darwin.so")
-               ((featurep :system 'linux)   "parinfer-rust-linux.so")
-               ((featurep :system 'windows) "parinfer-rust-windows.dll")
-               ((featurep :system 'bsd)     "libparinfer_rust.so")))
-        parinfer-rust-auto-download (not (featurep :system 'bsd))
-        parinfer-rust-disable-troublesome-modes t)
+  (setq parinfer-rust-disable-troublesome-modes t)
   :config
+  (let ((packaged-library
+         (and (boundp 'parinfer-rust-library)
+              (stringp parinfer-rust-library)
+              (file-readable-p parinfer-rust-library)
+              parinfer-rust-library)))
+    (if packaged-library
+        (setq parinfer-rust-library packaged-library
+              parinfer-rust-auto-download nil)
+      (setq parinfer-rust-library
+            (file-name-concat
+             doom-data-dir "parinfer-rust/"
+             (cond ((featurep :system 'macos)   "parinfer-rust-darwin.so")
+                   ((featurep :system 'linux)   "parinfer-rust-linux.so")
+                   ((featurep :system 'windows) "parinfer-rust-windows.dll")
+                   ((featurep :system 'bsd)     "libparinfer_rust.so")))
+            parinfer-rust-auto-download (not (featurep :system 'bsd)))))
   (map! :map parinfer-rust-mode-map
         :localleader
         "p" #'parinfer-rust-switch-mode

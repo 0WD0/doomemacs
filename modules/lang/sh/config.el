@@ -93,4 +93,18 @@
   :defer t
   :config
   (when (modulep! +lsp)
+    (after! lsp-pwsh
+      (let* ((pses-root (expand-file-name
+                         ".guix-home/profile/share/powershell-editor-services"
+                         (getenv "HOME")))
+             (pses-script (expand-file-name
+                           "PowerShellEditorServices/Start-EditorServices.ps1"
+                           pses-root))
+             (log-path (expand-file-name "pwsh/" doom-profile-cache-dir)))
+        (when (file-exists-p pses-script)
+          (setq lsp-pwsh-ext-path pses-root
+                lsp-pwsh-dir pses-root
+                lsp-pwsh-pses-script pses-script
+                lsp-pwsh-log-path log-path)
+          (make-directory lsp-pwsh-log-path t))))
     (add-hook 'powershell-mode-local-vars-hook #'lsp! 'append)))
