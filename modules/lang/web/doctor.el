@@ -8,11 +8,6 @@
              (modulep! :tools tree-sitter))
          "This module requires (:tools tree-sitter)")
 
-(unless (executable-find "js-beautify")
-  (warn! "Couldn't find js-beautify. Code formatting in JS/CSS/HTML modes will not work."))
-
-(unless (executable-find "stylelint")
-  (warn! "Couldn't find stylelint. Linting for CSS modes will not work."))
-
-(unless (executable-find "tidy")
-  (warn! "Couldn't find tidy. Code formatting in HTML modes will not work."))
+(when (modulep! :editor format)
+  (unless (executable-find "prettier")
+    (warn! "Couldn't find prettier. Code formatting in web, HTML, and CSS modes will not work.")))
