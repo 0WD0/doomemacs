@@ -4,9 +4,10 @@
   (error! "emacs-everywhere package does not support windows."))
 
 (when (featurep :system 'linux)
-  (let (unmet-deps)
-    (dolist (dep '("xclip" "xdotool" "xprop" "xwininfo"))
-      (unless (executable-find dep)
-        (push dep unmet-deps)))
-    (when unmet-deps
-      (error! "Unmet dependencies: %s" (string-join unmet-deps ", ")))))
+  (unless (eq (doom-desktop-backend) 'wayland)
+    (let (unmet-deps)
+      (dolist (dep '("xclip" "xdotool" "xprop" "xwininfo"))
+        (unless (executable-find dep)
+          (push dep unmet-deps)))
+      (when unmet-deps
+        (error! "Unmet dependencies: %s" (string-join unmet-deps ", "))))))

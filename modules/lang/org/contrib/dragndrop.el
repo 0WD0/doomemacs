@@ -27,9 +27,11 @@
         org-download-screenshot-method
         (cond ((featurep :system 'macos) "screencapture -i %s")
               ((featurep :system 'linux)
-               (cond ((executable-find "maim")  "maim -s %s")
-                     ((executable-find "scrot") "scrot -s %s")
-                     ((executable-find "gnome-screenshot") "gnome-screenshot -a -f %s"))))
+               (if (eq (doom-desktop-backend) 'wayland)
+                   "grim -g \"$(slurp)\" %s"
+                 (cond ((executable-find "maim")  "maim -s %s")
+                       ((executable-find "scrot") "scrot -s %s")
+                       ((executable-find "gnome-screenshot") "gnome-screenshot -a -f %s")))))
 
         org-download-heading-lvl nil
         org-download-link-format "[[download:%s]]\n"
