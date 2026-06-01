@@ -8,6 +8,7 @@
 ;;;###autoload (defvar projectile-project-root nil)
 ;;;###autoload (defvar projectile-enable-caching (not noninteractive))
 ;;;###autoload (defvar projectile-require-project-root 'prompt)
+;;;###autoload (defvar projectile-verbose nil)
 
 ;;;###autodef
 (cl-defun set-project-type! (name &key predicate compile run test configure dir)
