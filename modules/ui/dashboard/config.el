@@ -72,7 +72,8 @@ Possible values:
     ("Reload last session"
      :icon (nerd-icons-octicon "nf-oct-history" :face '+dashboard-menu-title)
      :when (cond ((modulep! :ui workspaces)
-                  (file-exists-p (expand-file-name persp-auto-save-fname persp-save-dir)))
+                  (ignore-errors
+                    (file-exists-p (doom-session-file))))
                  ((require 'desktop nil t)
                   (file-exists-p (desktop-full-file-name))))
      :action doom/quickload-session)
